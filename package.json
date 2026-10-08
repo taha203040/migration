@@ -1,18 +1,27 @@
 {
-  "name": "migration-lab",
-  "private": true,
-  "type": "module",
+  "name": "migration-app",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
-    "dev": "bun --watch src/server.ts",
-    "start": "bun src/server.ts",
-    "traffic": "bun traffic.ts",
-    "typecheck": "tsc --noEmit"
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
   "dependencies": {
-    "jose": "^5.9.0"
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.6.0"
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

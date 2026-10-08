@@ -1,9 +1,5 @@
-import { SQL } from "bun";
-import { config } from "./config";
+import { Pool } from "pg";
 
-export const sql = new SQL({
-  url: config.databaseUrl,
-  max: config.dbPoolMax,
-  idleTimeout: 30,
-  connectionTimeout: 10,
+export const pool = new Pool({
+connectionString: process.env.DATABASE_URL,
 });

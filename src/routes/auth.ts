@@ -1,34 +1,100 @@
-import { DUMMY_HASH, hashPassword, signToken, verifyPassword } from "../auth";
-import { sql } from "../db";
-import { HttpError, json, readJson, str } from "../http";
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { pool } from "../db";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const router = Router();
 
-export async function signup(req: Request): Promise<Response> {
-  const body = await readJson(req);
-  const name = str(body, "name", { max: 100 });
-  const email = str(body, "email", { max: 254 }).toLowerCase();
-  const password = str(body, "password", { min: 8, max: 200 });
-  if (!EMAIL_RE.test(email)) throw new HttpError(400, "email is not valid");
+router.post("/signup", async (req, res) => {
+try {
+const { email, password } = req.body;
 
-  const passwordHash = await hashPassword(password);
-  const rows = await sql`
-    INSERT INTO users (name, email, password_hash)
-    VALUES (${name}, ${email}, ${passwordHash})
-    ON CONFLICT (email) DO NOTHING
-    RETURNING id::text AS id, name, email, created_at`;
-  if (rows.length === 0) throw new HttpError(409, "Email already registered");
-  return json(rows[0], 201);
+```
+if (!email || !password) {
+  return res.status(400).json({
+    error: "email and password are required",
+  });
 }
 
-export async function login(req: Request): Promise<Response> {
-  const body = await readJson(req);
-  const email = str(body, "email", { max: 254 }).toLowerCase();
-  const password = str(body, "password", { max: 200 });
+const passwordHash = await bcrypt.hash(password, 10);
 
-  const rows = await sql`SELECT id::text AS id, password_hash FROM users WHERE email = ${email}`;
-  const user = rows[0];
-  const ok = await verifyPassword(password, user ? user.password_hash : DUMMY_HASH);
-  if (!user || !ok) throw new HttpError(401, "Invalid email or password");
-  return json({ token: await signToken(user.id), user_id: user.id });
+const result = await pool.query(
+  `
+  INSERT INTO users (email, password_hash)
+  VALUES ($1, $2)
+  RETURNING id, email, created_at
+  `,
+  [email, passwordHash]
+);
+
+res.status(201).json({
+  user: result.rows[0],
+});
+```
+
+} catch (error) {
+console.error(error);
+
+```
+res.status(500).json({
+  error: "internal server error",
+});
+```
+
 }
+});
+
+router.post("/login", async (req, res) => {
+try {
+const { email, password } = req.body;
+
+```
+const result = await pool.query(
+  `
+  SELECT id, email, password_hash
+  FROM users
+  WHERE email = $1
+  `,
+  [email]
+);
+
+if (result.rows.length === 0) {
+  return res.status(401).json({
+    error: "invalid credentials",
+  });
+}
+
+const user = result.rows[0];
+
+const validPassword = await bcrypt.compare(
+  password,
+  user.password_hash
+);
+
+if (!validPassword) {
+  return res.status(401).json({
+    error: "invalid credentials",
+  });
+}
+
+res.json({
+  message: "login successful",
+  user: {
+    id: user.id,
+    email: user.email,
+  },
+});
+```
+
+} catch (error) {
+console.error(error);
+
+```
+res.status(500).json({
+  error: "internal server error",
+});
+```
+
+}
+});
+
+export default router;
