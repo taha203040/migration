@@ -14,7 +14,7 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
           chmod 600 ~/.ssh/ec2.pem
 
-      - name: Install Node.js and prepare app
+      - name: Install Node.js
         run: |
           ssh -o StrictHostKeyChecking=no \
             -i ~/.ssh/ec2.pem \
@@ -22,29 +22,34 @@ jobs:
 
             set -e
 
-            echo "Updating system..."
-            sudo dnf update -y
+            echo "== OS =="
+            cat /etc/os-release
 
-            echo "Installing curl..."
-            sudo dnf install -y curl
+            echo "== Installing Node.js =="
 
-            echo "Installing Node.js..."
-            curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-            sudo dnf install -y nodejs
+            if command -v node >/dev/null 2>&1; then
+              echo "Node already installed:"
+              node --version
+            else
+              curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+              sudo dnf install -y nodejs
+            fi
 
-            echo "Creating application directory..."
+            echo "== Verification =="
+
+            command -v node
+            command -v npm
+
+            node --version
+            npm --version
+
+            echo "== Creating application directory =="
+
             sudo mkdir -p "${{ secrets.APP_DIR }}"
             sudo chown -R \$USER:\$USER "${{ secrets.APP_DIR }}"
 
-            echo "Node:"
-            node --version
-
-            echo "NPM:"
-            npm --version
-
-            echo "Application directory:"
             ls -ld "${{ secrets.APP_DIR }}"
 
-            echo "EC2-1 setup completed."
+            echo "== Node EC2 setup completed =="
 
           EOF
