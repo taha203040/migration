@@ -32,22 +32,98 @@ jobs:
           overwrite: true
           rm: false
 
-      - name: Deploy on EC2
+      - name: Setup PostgreSQL, apply schema, deploy app
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 20m
           script: |
             set -e
+            APP_DIR=/home/ec2-user/migration
+            cd "$APP_DIR"
+
+            ########################################
+            # 1. Ensure PostgreSQL 17 is installed #
+            ########################################
+            if ! rpm -q postgresql17-server >/dev/null 2>&1; then
+              sudo dnf install -y postgresql17-server postgresql17 postgresql17-contrib
+            fi
+
+            ########################################
+            # 2. Initialize cluster if missing     #
+            ########################################
+            if [ ! -f /var/lib/pgsql/data/PG_VERSION ]; then
+              sudo postgresql-setup --initdb
+            fi
+
+            ########################################
+            # 3. Ensure service is enabled+started #
+            ########################################
+            sudo systemctl enable postgresql
+            sudo systemctl restart postgresql
+
+            # Wait until Postgres accepts connections
+            for i in $(seq 1 30); do
+              if sudo -u postgres pg_isready -q; then break; fi
+              sleep 1
+            done
+
+            ########################################
+            # 4. Configure auth for TCP password   #
+            ########################################
+            PG_HBA=/var/lib/pgsql/data/pg_hba.conf
+            # Add md5/scram rules for localhost if not present
+            if ! sudo grep -qE '^host\s+all\s+all\s+127\.0\.0\.1/32\s+scram-sha-256' "$PG_HBA"; then
+              echo "host    all             all             127.0.0.1/32            scram-sha-256" | sudo tee -a "$PG_HBA" >/dev/null
+              echo "host    all             all             ::1/128                 scram-sha-256" | sudo tee -a "$PG_HBA" >/dev/null
+            fi
+            sudo systemctl reload postgresql
+
+            ########################################
+            # 5. Create user + database (idempotent)#
+            ########################################
+            sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='lab'" | grep -q 1 || \
+              sudo -u postgres psql -c "CREATE USER lab WITH PASSWORD 'lab';"
+
+            sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='lab'" | grep -q 1 || \
+              sudo -u postgres createdb -O lab lab
+
+            # Make sure password stays in sync and user owns the DB
+            sudo -u postgres psql -c "ALTER USER lab WITH PASSWORD 'lab';"
+            sudo -u postgres psql -c "ALTER DATABASE lab OWNER TO lab;"
+
+            ########################################
+            # 6. Apply schema.sql                  #
+            ########################################
+            if [ -f "$APP_DIR/schema.sql" ]; then
+              PGPASSWORD=lab psql -h 127.0.0.1 -U lab -d lab -f "$APP_DIR/schema.sql"
+            fi
+
+            ########################################
+            # 7. Write .env                        #
+            ########################################
+            cat > "$APP_DIR/.env" <<'EOF'
+            DATABASE_URL=postgres://lab:lab@127.0.0.1:5432/lab
+            JWT_SECRET=change-me-to-a-long-random-string
+            PORT=3000
+            DB_POOL_MAX=10
+            EOF
+
+            ########################################
+            # 8. Install Bun if missing            #
+            ########################################
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:$PATH"
-
-            if ! command -v bun &> /dev/null; then
+            if ! command -v bun >/dev/null 2>&1; then
               curl -fsSL https://bun.sh/install | bash
               export PATH="$BUN_INSTALL/bin:$PATH"
             fi
 
-            cd /home/ec2-user/migration
-            bun install --production
+            ########################################
+            # 9. Install deps + restart service    #
+            ########################################
+            bun install
             sudo systemctl restart migration.service
+            sudo systemctl --no-pager status migration.service | head -20
