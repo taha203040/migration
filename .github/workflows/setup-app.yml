@@ -1,0 +1,56 @@
+name: Setup App EC2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to App EC2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.APP_EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Updating EC2 ==="
+            sudo dnf update -y
+
+            echo "=== Installing packages ==="
+            sudo dnf install -y git nodejs22
+
+            echo "=== Checking versions ==="
+            node --version
+            npm --version
+            git --version
+
+            echo "=== Removing old application ==="
+            rm -rf ~/migration-app
+
+            echo "=== Cloning application ==="
+            git clone https://github.com/taha203040/migration-app.git ~/migration-app
+
+            cd ~/migration-app
+
+            echo "=== Creating environment ==="
+            cat > .env <<EOF
+            PORT=3000
+            DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@172.31.48.98:5432/migration_lab
+            EOF
+
+            chmod 600 .env
+
+            echo "=== Installing dependencies ==="
+            npm ci
+
+            echo "=== Building application ==="
+            npm run build
+
+            echo "=== Starting application ==="
+            nohup npm start > ~/migration-app.log 2>&1 &
+
+            echo "=== App deployment complete ==="
