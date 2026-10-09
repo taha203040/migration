@@ -31,7 +31,7 @@ jobs:
             rm -rf ~/migration-app
 
             echo "=== Cloning application ==="
-            git clone https://github.com/taha203040/migration-app.git ~/migration-app
+            git clone https://github.com/taha203040/migration.git ~/migration-app
 
             cd ~/migration-app
 
