@@ -21,15 +21,16 @@ jobs:
             sudo dnf update -y
 
             echo "=== Installing required packages ==="
-            sudo dnf install -y git curl
+            sudo dnf install -y git curl-minimal
 
             echo "=== Installing k6 ==="
-
             sudo dnf install -y https://dl.k6.io/rpm/repo.rpm
             sudo dnf install -y k6
 
             echo "=== Checking versions ==="
             k6 version
             git --version
+            curl --version
 
             echo "=== k6 setup complete ==="
+

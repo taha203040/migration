@@ -28,21 +28,27 @@ jobs:
             npm --version
             git --version
 
+            echo "=== Testing GitHub access ==="
+            git ls-remote https://github.com/taha203040/migration-app.git HEAD
+
             echo "=== Removing old application ==="
             rm -rf ~/migration-app
 
             echo "=== Cloning application ==="
-            git clone https://github.com/taha203040/migration-app.git ~/migration-app
+            GIT_TERMINAL_PROMPT=0 git \
+              -c credential.helper= \
+              clone --no-recurse-submodules \
+              https://github.com/taha203040/migration-app.git \
+              ~/migration-app
 
             cd ~/migration-app
 
             echo "=== Creating environment ==="
+            umask 077
             cat > .env <<EOF
             PORT=3000
             DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@172.31.48.98:5432/migration_lab
             EOF
-
-            chmod 600 .env
 
             echo "=== Installing dependencies ==="
             npm ci
@@ -51,6 +57,22 @@ jobs:
             npm run build
 
             echo "=== Starting application ==="
+            if [ -f ~/migration-app.pid ]; then
+              OLD_PID=$(cat ~/migration-app.pid)
+              kill "$OLD_PID" 2>/dev/null || true
+            fi
+
             nohup npm start > ~/migration-app.log 2>&1 &
+            echo $! > ~/migration-app.pid
+
+            echo "=== Checking application startup ==="
+            sleep 5
+
+            if ! kill -0 "$(cat ~/migration-app.pid)" 2>/dev/null; then
+              echo "ERROR: Application process exited."
+              cat ~/migration-app.log
+              exit 1
+            fi
 
             echo "=== App deployment complete ==="
+
