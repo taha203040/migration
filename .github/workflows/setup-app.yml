@@ -27,19 +27,11 @@ jobs:
             node --version
             npm --version
             git --version
-
-            echo "=== Testing GitHub access ==="
-            git ls-remote https://github.com/taha203040/migration-app.git HEAD
-
             echo "=== Removing old application ==="
             rm -rf ~/migration-app
 
             echo "=== Cloning application ==="
-            GIT_TERMINAL_PROMPT=0 git \
-              -c credential.helper= \
-              clone --no-recurse-submodules \
-              https://github.com/taha203040/migration-app.git \
-              ~/migration-app
+            git clone https://github.com/taha203040/migration-app.git ~/migration-app
 
             cd ~/migration-app
 
