@@ -15,22 +15,58 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # set -e
+
+            # echo "=== Updating EC2 ==="
+            # sudo dnf update -y
+
+            # echo "=== Installing required packages ==="
+            # sudo dnf install -y git curl-minimal
+
+            # echo "=== Installing k6 ==="
+            # sudo dnf install -y https://dl.k6.io/rpm/repo.rpm
+            # sudo dnf install -y k6
+
+            # echo "=== Checking versions ==="
+            # k6 version
+            # git --version
+            # curl --version
+
+            # echo "=== k6 setup complete ==="
             set -e
 
-            echo "=== Updating EC2 ==="
-            sudo dnf update -y
-
-            echo "=== Installing required packages ==="
-            sudo dnf install -y git curl-minimal
-
-            echo "=== Installing k6 ==="
-            sudo dnf install -y https://dl.k6.io/rpm/repo.rpm
-            sudo dnf install -y k6
-
-            echo "=== Checking versions ==="
+            echo "=== Checking k6 ==="
             k6 version
-            git --version
-            curl --version
 
-            echo "=== k6 setup complete ==="
+            echo "=== Creating traffic test ==="
+            mkdir -p ~/migration-load-test
+            cd ~/migration-load-test
+
+            cat > traffic.ts <<'EOF'
+            import http from 'k6/http';
+            import { check, sleep } from 'k6';
+
+            export const options = {
+              vus: 5,
+              duration: '30s',
+            };
+
+            export default function () {
+              const response = http.get('http://172.31.48.98:3000');
+
+              check(response, {
+                'status is 200': (r) => r.status === 200,
+              });
+
+              sleep(1);
+            }
+            EOF
+
+            echo "=== Traffic test created ==="
+
+            # Run the test manually later:
+            # cd ~/migration-load-test && k6 run traffic.ts
+
+
+
 
