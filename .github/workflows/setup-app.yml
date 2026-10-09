@@ -17,16 +17,16 @@ jobs:
           script: |
             set -e
 
-            echo "=== Updating EC2 ==="
-            sudo dnf update -y
+            # echo "=== Updating EC2 ==="
+            # sudo dnf update -y
 
-            echo "=== Installing packages ==="
-            sudo dnf install -y git nodejs22
+            # echo "=== Installing packages ==="
+            # sudo dnf install -y git nodejs22
 
-            echo "=== Checking versions ==="
-            node --version
-            npm --version
-            git --version
+            # echo "=== Checking versions ==="
+            # node --version
+            # npm --version
+            # git --version
 
             echo "=== Removing old application ==="
             rm -rf ~/migration
@@ -40,9 +40,7 @@ jobs:
             umask 077
             cat > .env <<EOF
             PORT=3000
-            DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@172.31.48.98:5432/migration_lab
-            EOF
-
+            DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_PRV_IP }}:5432/migration_lab
             echo "=== Installing dependencies ==="
             npm ci
             echo "===Install missing Types"
