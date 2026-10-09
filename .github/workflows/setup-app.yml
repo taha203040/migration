@@ -8,64 +8,107 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to App EC2
+      # - name: Deploy to App EC2
+      #   uses: appleboy/ssh-action@v1.2.2
+      #   with:
+      #     host: ${{ secrets.APP_EC2_HOST }}
+      #     username: ec2-user
+      #     key: ${{ secrets.EC2_SSH_KEY }}
+      #     script: |
+      #       set -e
+
+      #       echo "=== Updating EC2 ==="
+      #       sudo dnf update -y
+
+      #       echo "=== Installing packages ==="
+      #       sudo dnf install -y git nodejs22
+
+      #       echo "=== Checking versions ==="
+      #       node --version
+      #       npm --version
+      #       git --version
+
+      #       echo "=== Removing old application ==="
+      #       rm -rf ~/migration
+
+      #       echo "=== Cloning application ==="
+      #       git clone https://github.com/taha203040/migration.git ~/migration
+
+      #       cd ~/migration
+
+      #       echo "=== Creating environment ==="
+      #       umask 077
+      #       cat > .env <<EOF
+      #       PORT=3000
+      #       DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_PRV_IP }}:5432/migration_lab            EOF
+
+      #       echo "=== Installing dependencies ==="
+      #       npm ci
+      #       echo "===Install missing Types"
+      #       npm install --save-dev @types/pg
+      #       echo "=== Building application ==="
+      #       npm run build
+
+      #       echo "=== Stopping old application ==="
+      #       if [ -f ~/migration.pid ]; then
+      #         OLD_PID=$(cat ~/migration.pid)
+      #         kill "$OLD_PID" 2>/dev/null || true
+      #       fi
+
+      #       echo "=== Starting application ==="
+      #       nohup npm start > ~/migration.log 2>&1 &
+      #       echo $! > ~/migration.pid
+
+      #       echo "=== Checking application startup ==="
+      #       sleep 5
+
+      #       if ! kill -0 "$(cat ~/migration.pid)" 2>/dev/null; then
+      #         echo "ERROR: Application process exited."
+      #         cat ~/migration.log
+      #         exit 1
+      #       fi
+
+      #       echo "=== App deployment complete ==="
+      
+      - name: Initialize PostgreSQL database
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.APP_EC2_HOST }}
+          host: ${{ secrets.DB_EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
 
-            # echo "=== Updating EC2 ==="
-            # sudo dnf update -y
+            echo "=== Ensure database exists ==="
 
-            # echo "=== Installing packages ==="
-            # sudo dnf install -y git nodejs22
+            sudo -u postgres psql -tAc \
+              "SELECT 1 FROM pg_database WHERE datname = 'migration_lab'" \
+              | grep -q 1 || \
+              sudo -u postgres createdb migration_lab
 
-            # echo "=== Checking versions ==="
-            # node --version
-            # npm --version
-            # git --version
+            echo "=== Create application tables ==="
 
-            echo "=== Removing old application ==="
-            rm -rf ~/migration
+            sudo -u postgres psql -v ON_ERROR_STOP=1 -d migration_lab <<'SQL'
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
 
-            echo "=== Cloning application ==="
-            git clone https://github.com/taha203040/migration.git ~/migration
+            CREATE TABLE IF NOT EXISTS posts (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(id),
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
 
-            cd ~/migration
+            CREATE INDEX IF NOT EXISTS idx_posts_user_id
+                ON posts(user_id);
+            SQL
 
-            echo "=== Creating environment ==="
-            umask 077
-            cat > .env <<EOF
-            PORT=3000
-            DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_PRV_IP }}:5432/migration_lab
-            echo "=== Installing dependencies ==="
-            npm ci
-            echo "===Install missing Types"
-            npm install --save-dev @types/pg
-            echo "=== Building application ==="
-            npm run build
+            echo "=== Verify tables ==="
 
-            echo "=== Stopping old application ==="
-            if [ -f ~/migration.pid ]; then
-              OLD_PID=$(cat ~/migration.pid)
-              kill "$OLD_PID" 2>/dev/null || true
-            fi
-
-            echo "=== Starting application ==="
-            nohup npm start > ~/migration.log 2>&1 &
-            echo $! > ~/migration.pid
-
-            echo "=== Checking application startup ==="
-            sleep 5
-
-            if ! kill -0 "$(cat ~/migration.pid)" 2>/dev/null; then
-              echo "ERROR: Application process exited."
-              cat ~/migration.log
-              exit 1
-            fi
-
-            echo "=== App deployment complete ==="
-
+            sudo -u postgres psql -d migration_lab -c '\dt'
+            echo "=== Database initialization complete ==="
