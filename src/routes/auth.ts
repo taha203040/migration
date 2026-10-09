@@ -8,7 +8,6 @@ router.post("/signup", async (req, res) => {
 try {
 const { email, password } = req.body;
 
-```
 if (!email || !password) {
   return res.status(400).json({
     error: "email and password are required",
@@ -29,16 +28,13 @@ const result = await pool.query(
 res.status(201).json({
   user: result.rows[0],
 });
-```
 
 } catch (error) {
 console.error(error);
 
-```
 res.status(500).json({
   error: "internal server error",
 });
-```
 
 }
 });
@@ -47,7 +43,6 @@ router.post("/login", async (req, res) => {
 try {
 const { email, password } = req.body;
 
-```
 const result = await pool.query(
   `
   SELECT id, email, password_hash
@@ -83,16 +78,15 @@ res.json({
     email: user.email,
   },
 });
-```
 
 } catch (error) {
 console.error(error);
 
-```
+
 res.status(500).json({
   error: "internal server error",
 });
-```
+
 
 }
 });

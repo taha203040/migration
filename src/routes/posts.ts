@@ -7,7 +7,7 @@ router.post("/", async (req, res) => {
 try {
 const { userId, title, content } = req.body;
 
-```
+ 
 if (!userId || !title || !content) {
   return res.status(400).json({
     error: "userId, title and content are required",
@@ -26,16 +26,16 @@ const result = await pool.query(
 res.status(201).json({
   post: result.rows[0],
 });
-```
+ 
 
 } catch (error) {
 console.error(error);
 
-```
+ 
 res.status(500).json({
   error: "internal server error",
 });
-```
+ 
 
 }
 });
@@ -47,20 +47,20 @@ const result = await pool.query(`       SELECT *
       ORDER BY created_at DESC
     `);
 
-```
+ 
 res.json({
   posts: result.rows,
 });
-```
+ 
 
 } catch (error) {
 console.error(error);
 
-```
+ 
 res.status(500).json({
   error: "internal server error",
 });
-```
+ 
 
 }
 });
@@ -75,7 +75,7 @@ const result = await pool.query(
 [req.params.id]
 );
 
-```
+ 
 if (result.rows.length === 0) {
   return res.status(404).json({
     error: "post not found",
@@ -85,16 +85,16 @@ if (result.rows.length === 0) {
 res.json({
   post: result.rows[0],
 });
-```
+ 
 
 } catch (error) {
 console.error(error);
 
-```
+ 
 res.status(500).json({
   error: "internal server error",
 });
-```
+ 
 
 }
 });
