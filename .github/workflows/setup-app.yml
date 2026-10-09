@@ -45,7 +45,8 @@ jobs:
 
             echo "=== Installing dependencies ==="
             npm ci
-
+            echo "===Install missing Types"
+            npm install --save-dev @types/pg
             echo "=== Building application ==="
             npm run build
 
