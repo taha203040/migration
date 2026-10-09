@@ -27,13 +27,14 @@ jobs:
             node --version
             npm --version
             git --version
+
             echo "=== Removing old application ==="
-            rm -rf ~/migration-app
+            rm -rf ~/migration
 
             echo "=== Cloning application ==="
-            git clone https://github.com/taha203040/migration.git ~/migration-app
+            git clone https://github.com/taha203040/migration.git ~/migration
 
-            cd ~/migration-app
+            cd ~/migration
 
             echo "=== Creating environment ==="
             umask 077
@@ -48,21 +49,22 @@ jobs:
             echo "=== Building application ==="
             npm run build
 
-            echo "=== Starting application ==="
-            if [ -f ~/migration-app.pid ]; then
-              OLD_PID=$(cat ~/migration-app.pid)
+            echo "=== Stopping old application ==="
+            if [ -f ~/migration.pid ]; then
+              OLD_PID=$(cat ~/migration.pid)
               kill "$OLD_PID" 2>/dev/null || true
             fi
 
-            nohup npm start > ~/migration-app.log 2>&1 &
-            echo $! > ~/migration-app.pid
+            echo "=== Starting application ==="
+            nohup npm start > ~/migration.log 2>&1 &
+            echo $! > ~/migration.pid
 
             echo "=== Checking application startup ==="
             sleep 5
 
-            if ! kill -0 "$(cat ~/migration-app.pid)" 2>/dev/null; then
+            if ! kill -0 "$(cat ~/migration.pid)" 2>/dev/null; then
               echo "ERROR: Application process exited."
-              cat ~/migration-app.log
+              cat ~/migration.log
               exit 1
             fi
 
