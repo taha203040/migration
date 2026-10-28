@@ -14,26 +14,9 @@ jobs:
           host: ${{ secrets.K6_EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true          # <-- fail on first error, cleaner than relying on set -e
           script: |
-            # set -e
-
-            # echo "=== Updating EC2 ==="
-            # sudo dnf update -y
-
-            # echo "=== Installing required packages ==="
-            # sudo dnf install -y git curl-minimal
-
-            # echo "=== Installing k6 ==="
-            # sudo dnf install -y https://dl.k6.io/rpm/repo.rpm
-            # sudo dnf install -y k6
-
-            # echo "=== Checking versions ==="
-            # k6 version
-            # git --version
-            # curl --version
-
-            # echo "=== k6 setup complete ==="
-            set -e
+            set -euo pipefail
 
             echo "=== Checking k6 ==="
             k6 version
@@ -66,7 +49,3 @@ jobs:
 
             # Run the test manually later:
             # cd ~/migration-load-test && k6 run traffic.ts
-
-
-
-
